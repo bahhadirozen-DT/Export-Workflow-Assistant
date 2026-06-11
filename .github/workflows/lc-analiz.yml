@@ -1,0 +1,22 @@
+name: LC Otomatik Analiz
+
+on:
+  push:
+    paths:
+      - 'uploads/**' # uploads klasörüne dosya gelince tetiklen
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Python Kurulumu
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Gerekli Paketleri Yükle
+        run: pip install streamlit pdfplumber python-docx pandas
+      - name: Analizi Çalıştır
+        run: |
+          echo "Dosya tespit edildi. Analiz scripti çalıştırılıyor..."
+          # Buraya 'python analyze_script.py' gibi bir tetikleyici gelecek
