@@ -1,6 +1,7 @@
 import streamlit as st
-import pdfplumber
+import pandas as pd
 from docx import Document
+import pdfplumber
 from PIL import Image
 import pytesseract
 from pdf2image import convert_from_bytes
@@ -9,10 +10,7 @@ from rules import DOCUMENT_RULES
 
 st.set_page_config(page_title="Export Workflow Assistant", layout="wide")
 
-st.title("📦 Export Workflow Assistant")
-st.write("Akreditif, PDF, Word veya görsel dosyalarını yükleyin, operasyon planınızı alın.")
-
-# --- Dosya Okuma Fonksiyonları ---
+# Fonksiyonlar
 def read_docx(file):
     doc = Document(file)
     return "\n".join([p.text for p in doc.paragraphs])
@@ -39,41 +37,53 @@ def ocr_pdf(file):
     except: pass
     return text
 
-# --- Arayüz ve Lojik ---
-uploaded_file = st.file_uploader("Dosya Yükle", type=["pdf", "docx", "jpg", "jpeg", "png"])
+st.title("📦 Export Workflow Assistant")
 
-if uploaded_file:
-    file_name = uploaded_file.name.lower()
-    extracted_text = ""
+# Sekmeler
+tab1, tab2 = st.tabs(["🚀 Operasyon İşlemleri", "📊 Analiz ve Dosya Yönetimi"])
 
-    if file_name.endswith(".docx"):
-        extracted_text = read_docx(uploaded_file)
-    elif file_name.endswith(".pdf"):
-        extracted_text = read_pdf(uploaded_file)
-        if len(extracted_text.strip()) < 50:
-            uploaded_file.seek(0)
-            extracted_text = ocr_pdf(uploaded_file)
-    elif file_name.endswith((".jpg", ".jpeg", ".png")):
-        image = Image.open(uploaded_file)
-        extracted_text = ocr_image(image)
+if 'analysis_history' not in st.session_state:
+    st.session_state.analysis_history = []
 
-    st.subheader("Çıkarılan Metin")
-    st.text_area("", extracted_text, height=200)
+with tab1:
+    uploaded_file = st.file_uploader("Dosya Yükle", type=["pdf", "docx", "jpg", "jpeg", "png"])
+    
+    if uploaded_file:
+        file_name = uploaded_file.name.lower()
+        extracted_text = ""
+        if file_name.endswith(".docx"): extracted_text = read_docx(uploaded_file)
+        elif file_name.endswith(".pdf"):
+            extracted_text = read_pdf(uploaded_file)
+            if len(extracted_text.strip()) < 50:
+                uploaded_file.seek(0)
+                extracted_text = ocr_pdf(uploaded_file)
+        elif file_name.endswith((".jpg", ".jpeg", ".png")):
+            image = Image.open(uploaded_file)
+            extracted_text = ocr_image(image)
 
-    # --- Operasyonel Planlayıcı ---
-    detected_docs = detect_documents(extracted_text)
-    st.subheader("Operasyon Rehberi ve Checklist")
+        detected_docs = detect_documents(extracted_text)
+        
+        # Geçmişe kaydet
+        if not any(d['Dosya'] == uploaded_file.name for d in st.session_state.analysis_history):
+            st.session_state.analysis_history.append({"Dosya": uploaded_file.name, "Tespit Edilenler": ", ".join(detected_docs)})
 
-    if detected_docs:
         for doc in detected_docs:
             with st.expander(f"✅ {doc} - Hazırlık Planı", expanded=True):
                 if doc in DOCUMENT_RULES:
                     rule = DOCUMENT_RULES[doc]
                     st.markdown(f"**💡 Tavsiye:** {rule['advice']}")
-                    st.markdown("**📋 Doldurulması Gerekenler:**")
                     for field in rule['required_fields']:
                         st.checkbox(f"{field} hazır")
                 else:
-                    st.info("Bu belge için özel bir kural tanımlı değil.")
+                    st.info("Bu belge için özel kural tanımlı değil.")
+
+with tab2:
+    st.header("Analiz Geçmişi")
+    if st.session_state.analysis_history:
+        df = pd.DataFrame(st.session_state.analysis_history)
+        st.table(df)
+        if st.button("Analiz Raporunu İndir (Excel)"):
+            df.to_excel("operasyon_raporu.xlsx", index=False)
+            st.success("operasyon_raporu.xlsx oluşturuldu!")
     else:
-        st.warning("Belge tespit edilemedi.")
+        st.info("Henüz analiz edilen dosya yok.")
