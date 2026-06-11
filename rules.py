@@ -6,7 +6,7 @@ DOCUMENT_RULES = {
     },
     "Bill of Lading": {
         "required_fields": ["Shipper", "Consignee", "Notify Party", "Port of Loading", "Port of Discharge", "Gross Weight"],
-        "advice": "Konşimento 'Clean on Board' olmalı ve navlun ödemesi akreditif şartına (Prepaid/Collect) uygun olmalıdır."
+        "advice": "Konşimento 'Clean on Board' olmalı ve navlun ödemesi akreditif şartına uygun olmalıdır."
     },
     "Packing List": {
         "required_fields": ["Invoice Reference", "Package Count", "Net Weight", "Gross Weight"],
