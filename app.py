@@ -9,21 +9,14 @@ from pdf2image import convert_from_bytes
 from document_rules import detect_documents
 from rules import DOCUMENT_RULES
 
-# Uploads klasörünü oluştur
-if not os.path.exists("uploads"):
-    os.makedirs("uploads")
+# Klasör yapılarını hazırla
+if not os.path.exists("uploads"): os.makedirs("uploads")
+if not os.path.exists("downloads"): os.makedirs("downloads")
 
 st.set_page_config(page_title="Export Workflow Assistant", layout="wide")
-
 st.title("📦 Export Workflow Assistant")
 
-# Sekmeler
-tab1, tab2 = st.tabs(["🚀 Operasyon İşlemleri", "📊 Analiz ve Dosya Yönetimi"])
-
-if 'analysis_history' not in st.session_state:
-    st.session_state.analysis_history = []
-
-# Fonksiyonlar
+# --- Fonksiyonlar ---
 def read_docx(file):
     doc = Document(file)
     return "\n".join([p.text for p in doc.paragraphs])
@@ -50,16 +43,31 @@ def ocr_pdf(file):
     except: pass
     return text
 
+def create_template(doc_type):
+    doc = Document()
+    doc.add_heading(f'{doc_type} Taslağı', 0)
+    doc.add_paragraph('Otomatik oluşturulmuştur.')
+    if doc_type in DOCUMENT_RULES:
+        for field in DOCUMENT_RULES[doc_type]["required_fields"]:
+            doc.add_paragraph(f"{field}: ........................")
+    file_path = f"downloads/{doc_type}_Taslak.docx"
+    doc.save(file_path)
+    return file_path
+
+# --- Arayüz ---
+tab1, tab2 = st.tabs(["🚀 Operasyon İşlemleri", "📊 Analiz ve Dosya Yönetimi"])
+
+if 'analysis_history' not in st.session_state:
+    st.session_state.analysis_history = []
+
 with tab1:
     uploaded_file = st.file_uploader("Dosya Yükle", type=["pdf", "docx", "jpg", "jpeg", "png"])
-    
     if uploaded_file:
         # Fiziksel kaydet
         file_path = os.path.join("uploads", uploaded_file.name)
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+        with open(file_path, "wb") as f: f.write(uploaded_file.getbuffer())
 
-        # Metni al
+        # Metin analizi
         file_name = uploaded_file.name.lower()
         extracted_text = ""
         if file_name.endswith(".docx"): extracted_text = read_docx(uploaded_file)
@@ -69,11 +77,9 @@ with tab1:
                 uploaded_file.seek(0)
                 extracted_text = ocr_pdf(uploaded_file)
         elif file_name.endswith((".jpg", ".jpeg", ".png")):
-            image = Image.open(uploaded_file)
-            extracted_text = ocr_image(image)
+            extracted_text = ocr_image(Image.open(uploaded_file))
 
         detected_docs = detect_documents(extracted_text)
-        
         if not any(d['Dosya'] == uploaded_file.name for d in st.session_state.analysis_history):
             st.session_state.analysis_history.append({"Dosya": uploaded_file.name, "Tespit Edilenler": ", ".join(detected_docs)})
 
@@ -85,15 +91,17 @@ with tab1:
                     st.error(f"⚠️ **Kritik Kontrol:** {rule['critical_check']}")
                     for field in rule['required_fields']:
                         st.checkbox(f"{field} hazır")
+                    
+                    # Doküman Taslak Oluşturma
+                    if st.button(f"📥 {doc} Taslağı Oluştur", key=f"btn_{doc}"):
+                        path = create_template(doc)
+                        with open(path, "rb") as f:
+                            st.download_button(f"Taslağı İndir", f, file_name=f"{doc}_Taslak.docx")
                 else:
                     st.info("Bu belge için özel kural tanımlı değil.")
 
 with tab2:
-    st.header("Dosya Deposu ve Analiz Geçmişi")
-    # Dosya deposunu göster
-    files = os.listdir("uploads")
-    st.write("### Yüklenen Dosyalar:", files)
-    
+    st.header("Analiz Geçmişi")
     if st.session_state.analysis_history:
         df = pd.DataFrame(st.session_state.analysis_history)
         st.table(df)
