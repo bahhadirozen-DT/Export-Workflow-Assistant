@@ -5,14 +5,14 @@ from PIL import Image
 import pytesseract
 from pdf2image import convert_from_bytes
 from document_rules import detect_documents
-from rules import DOCUMENT_RULES  # rules.py dosyanın olduğundan emin ol
+from rules import DOCUMENT_RULES
 
 st.set_page_config(page_title="Export Workflow Assistant", layout="wide")
 
 st.title("📦 Export Workflow Assistant")
 st.write("Akreditif, PDF, Word veya görsel dosyalarını yükleyin, operasyon planınızı alın.")
 
-# --- Fonksiyonlar ---
+# --- Dosya Okuma Fonksiyonları ---
 def read_docx(file):
     doc = Document(file)
     return "\n".join([p.text for p in doc.paragraphs])
@@ -29,7 +29,7 @@ def read_pdf(file):
 
 def ocr_image(image):
     try: return pytesseract.image_to_string(image)
-    except: return "OCR Hatası oluştu."
+    except: return "OCR Hatası."
 
 def ocr_pdf(file):
     text = ""
@@ -39,7 +39,7 @@ def ocr_pdf(file):
     except: pass
     return text
 
-# --- Arayüz ---
+# --- Arayüz ve Lojik ---
 uploaded_file = st.file_uploader("Dosya Yükle", type=["pdf", "docx", "jpg", "jpeg", "png"])
 
 if uploaded_file:
@@ -72,8 +72,8 @@ if uploaded_file:
                     st.markdown(f"**💡 Tavsiye:** {rule['advice']}")
                     st.markdown("**📋 Doldurulması Gerekenler:**")
                     for field in rule['required_fields']:
-                        st.checkbox(f"{field}")
+                        st.checkbox(f"{field} hazır")
                 else:
-                    st.info("Bu belge için sistemde kural tanımlı değil.")
+                    st.info("Bu belge için özel bir kural tanımlı değil.")
     else:
         st.warning("Belge tespit edilemedi.")
