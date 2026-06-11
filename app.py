@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 from docx import Document
 import pdfplumber
 from PIL import Image
@@ -8,7 +9,19 @@ from pdf2image import convert_from_bytes
 from document_rules import detect_documents
 from rules import DOCUMENT_RULES
 
+# Uploads klasörünü oluştur
+if not os.path.exists("uploads"):
+    os.makedirs("uploads")
+
 st.set_page_config(page_title="Export Workflow Assistant", layout="wide")
+
+st.title("📦 Export Workflow Assistant")
+
+# Sekmeler
+tab1, tab2 = st.tabs(["🚀 Operasyon İşlemleri", "📊 Analiz ve Dosya Yönetimi"])
+
+if 'analysis_history' not in st.session_state:
+    st.session_state.analysis_history = []
 
 # Fonksiyonlar
 def read_docx(file):
@@ -37,18 +50,16 @@ def ocr_pdf(file):
     except: pass
     return text
 
-st.title("📦 Export Workflow Assistant")
-
-# Sekmeler
-tab1, tab2 = st.tabs(["🚀 Operasyon İşlemleri", "📊 Analiz ve Dosya Yönetimi"])
-
-if 'analysis_history' not in st.session_state:
-    st.session_state.analysis_history = []
-
 with tab1:
     uploaded_file = st.file_uploader("Dosya Yükle", type=["pdf", "docx", "jpg", "jpeg", "png"])
     
     if uploaded_file:
+        # Fiziksel kaydet
+        file_path = os.path.join("uploads", uploaded_file.name)
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        # Metni al
         file_name = uploaded_file.name.lower()
         extracted_text = ""
         if file_name.endswith(".docx"): extracted_text = read_docx(uploaded_file)
@@ -63,7 +74,6 @@ with tab1:
 
         detected_docs = detect_documents(extracted_text)
         
-        # Geçmişe kaydet
         if not any(d['Dosya'] == uploaded_file.name for d in st.session_state.analysis_history):
             st.session_state.analysis_history.append({"Dosya": uploaded_file.name, "Tespit Edilenler": ", ".join(detected_docs)})
 
@@ -79,7 +89,11 @@ with tab1:
                     st.info("Bu belge için özel kural tanımlı değil.")
 
 with tab2:
-    st.header("Analiz Geçmişi")
+    st.header("Dosya Deposu ve Analiz Geçmişi")
+    # Dosya deposunu göster
+    files = os.listdir("uploads")
+    st.write("### Yüklenen Dosyalar:", files)
+    
     if st.session_state.analysis_history:
         df = pd.DataFrame(st.session_state.analysis_history)
         st.table(df)
