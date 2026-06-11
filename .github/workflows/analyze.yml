@@ -1,0 +1,15 @@
+name: LC Analiz Simülasyonu
+on:
+  push:
+    paths:
+      - 'uploads/**' # 'uploads' klasörüne dosya gelirse tetiklen
+
+jobs:
+  simulate-operation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Operasyon Planı Hazırla
+        run: |
+          echo "Yeni dosya tespit edildi, analiz başlatılıyor..."
+          # Buraya kendi analiz scriptini (örneğin python analyze.py) ekleyebilirsin
